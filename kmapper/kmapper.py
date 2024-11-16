@@ -823,6 +823,19 @@ class KeplerMapper(object):
         >>> )
 
         """
+        def get_node_function(item):
+            if isinstance(item, tuple):
+                return item
+            else:
+                try:
+                    return item, getattr(np, item)
+                except AttributeError as e:
+                    raise AttributeError(
+                        "Invalid `node_color_function` {}, must be a function available on `numpy` class.".format(
+                            _node_color_function_name
+                        )
+                    ) from e
+
         if colorscale is None:
             colorscale = colorscale_default
 
@@ -842,18 +855,15 @@ class KeplerMapper(object):
         elif isinstance(color_function_name, str):
             color_function_name = [color_function_name]
 
-        if isinstance(node_color_function, str):
+        if not isinstance(node_color_function, list):
             node_color_function = [node_color_function]
 
-        for _node_color_function_name in node_color_function:
-            try:
-                getattr(np, _node_color_function_name)
-            except AttributeError as e:
-                raise AttributeError(
-                    "Invalid `node_color_function` {}, must be a function available on `numpy` class.".format(
-                        _node_color_function_name
-                    )
-                ) from e
+        node_color_function_callables = []
+        node_color_function_names = []
+        for _node_color_function in node_color_function:
+            name, callable = get_node_function(_node_color_function)
+            node_color_function_names.append(name)
+            node_color_function_callables.append(callable)
 
         if color_values is None:
             # We generate default `color_values` based on data row order
@@ -896,7 +906,7 @@ class KeplerMapper(object):
         mapper_data = _format_mapper_data(
             graph,
             color_values,
-            node_color_function,
+            node_color_function_callables,
             X,
             X_names,
             lens,
@@ -907,9 +917,9 @@ class KeplerMapper(object):
         )
 
         histogram = []
-        for _node_color_function_name in node_color_function:
+        for _node_color_function_callable in node_color_function_callables:
             _histogram = _graph_data_distribution(
-                graph, color_values, _node_color_function_name, colorscale
+                graph, color_values, _node_color_function_callable, colorscale
             )
             if np.array(_histogram).ndim == 1:
                 _histogram = [_histogram]  # javascript will expect the histogram
@@ -919,7 +929,7 @@ class KeplerMapper(object):
             histogram.append(_histogram)
 
         mapper_summary = _format_meta(
-            graph, color_function_name, node_color_function, custom_meta
+            graph, color_function_name, node_color_function_names, custom_meta
         )
 
         html = _render_d3_vis(

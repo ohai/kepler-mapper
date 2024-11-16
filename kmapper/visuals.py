@@ -279,10 +279,8 @@ def _format_mapper_data(
         node_id_to_num[node_id] = i
 
         node_color = []
-        for _node_color_function_name in node_color_function:
-            _node_color = _node_color_function(
-                member_ids, color_values, _node_color_function_name
-            )
+        for _node_color_function in node_color_function:
+            _node_color = _node_color_function(color_values[member_ids], axis=0)
             if np.array(_node_color).ndim == 0:
                 _node_color = [_node_color]
             if isinstance(_node_color, np.ndarray):
@@ -356,7 +354,7 @@ def _graph_data_distribution(
 ):
     node_averages = []
     for node_id, member_ids in graph["nodes"].items():
-        node_color = _node_color_function(member_ids, color_values, node_color_function)
+        node_color = node_color_function(color_values[member_ids], axis=0)
         node_averages.append(node_color)
 
     node_averages = np.array(node_averages)
